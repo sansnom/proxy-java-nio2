@@ -3,6 +3,7 @@ package fr.proxy;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
@@ -29,9 +30,10 @@ public class ProxyServer implements Runnable {
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 		configureLogger();
-		ProxyServer mllpServer = new ProxyServer(8787, true, null, 10);
-		mllpServer.run();
-		mllpServer.join();
+		ProxyServer proxyServer = new ProxyServer(8787, true, null, 10);
+		proxyServer.run();
+		proxyServer.join();
+		proxyServer.stop();
 	}
 
 	private static void configureLogger() {
@@ -54,13 +56,22 @@ public class ProxyServer implements Runnable {
 	@Override
 	public void run() {
 		LOGGER.log(Level.FINE, "Run...");
-		serverChannel.accept(new SocketInfo(""), new CompletionHandler<>() {
+		serverChannel.accept(new SocketInfo(), new CompletionHandler<>() {
 
 			@Override
 			public void completed(AsynchronousSocketChannel result, SocketInfo attachment) {
+				try {
+					InetSocketAddress remoteAddress = (InetSocketAddress) result.getRemoteAddress();
+					attachment.setClientAddress(remoteAddress);
+				} catch (IOException e) {
+					LOGGER.log(Level.WARNING, "Could not retrieve remote address", e);
+				}
+
 				executorService.submit(() -> handle(result, attachment));
+
+				// Continue accepting request ?
 				if (!stop) {
-					serverChannel.accept(new SocketInfo(""), this);
+					serverChannel.accept(new SocketInfo(), this);
 				}
 			}
 
@@ -85,6 +96,11 @@ public class ProxyServer implements Runnable {
 	private void handle(AsynchronousSocketChannel socketChannel, SocketInfo attachment) {
 		LOGGER.log(Level.INFO, "New connection");
 		attachment.setClient(socketChannel);
+		SocketInfo socketInfo = SocketHandler.CLIENTS.get(attachment.getClientAddress());
+		if (socketInfo != null) {
+			LOGGER.log(Level.INFO, "Found existing tunnel for given client.");
+			attachment = socketInfo;
+		}
 		SocketHandler.readFromClientSocket(attachment);
 	}
 }

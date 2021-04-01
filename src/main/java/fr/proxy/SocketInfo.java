@@ -1,18 +1,24 @@
 package fr.proxy;
 
+import java.net.InetSocketAddress;
 import java.nio.channels.AsynchronousSocketChannel;
 
 public class SocketInfo {
 
-	private final String clientIP;
+	private InetSocketAddress clientAddress;
 	private AsynchronousSocketChannel client;
 	private volatile AsynchronousSocketChannel remote;
 	private String hostname;
 	private int port;
 	private volatile boolean remoteReadDone;
+	private boolean tunnel;
 
-	public SocketInfo(String clientIP) {
-		this.clientIP = clientIP;
+	public InetSocketAddress getClientAddress() {
+		return clientAddress;
+	}
+
+	public void setClientAddress(InetSocketAddress clientAddress) {
+		this.clientAddress = clientAddress;
 	}
 
 	public AsynchronousSocketChannel getClient() {
@@ -21,10 +27,6 @@ public class SocketInfo {
 
 	public void setClient(AsynchronousSocketChannel client) {
 		this.client = client;
-	}
-
-	public String getClientIP() {
-		return clientIP;
 	}
 
 	public AsynchronousSocketChannel getRemote() {
@@ -51,20 +53,33 @@ public class SocketInfo {
 		this.port = port;
 	}
 
-	@Override
-	public String toString() {
-		return "SocketInfo{" +
-			"clientIP='" + clientIP + '\'' +
-			", hostname='" + hostname + '\'' +
-			", port=" + port +
-			'}';
-	}
-
 	public void remoteReadDone() {
 		this.remoteReadDone = true;
 	}
 
 	public boolean isRemoteReadDone() {
 		return remoteReadDone;
+	}
+
+	public void setTunnel(boolean tunnel) {
+		this.tunnel = tunnel;
+	}
+
+	public boolean isTunnel() {
+		return tunnel;
+	}
+
+	public void setDestination(Destination destination) {
+		this.hostname = destination.getHostName();
+		this.port = destination.getPort();
+	}
+
+	@Override
+	public String toString() {
+		return "SocketInfo{" +
+			"clientAddress='" + clientAddress + '\'' +
+			", hostname='" + hostname + '\'' +
+			", port=" + port +
+			'}';
 	}
 }
