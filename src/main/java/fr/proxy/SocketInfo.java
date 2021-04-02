@@ -3,6 +3,10 @@ package fr.proxy;
 import java.net.InetSocketAddress;
 import java.nio.channels.AsynchronousSocketChannel;
 
+/**
+ *
+ * @author sbrocard
+ */
 public class SocketInfo {
 
 	private InetSocketAddress clientAddress;
@@ -12,6 +16,7 @@ public class SocketInfo {
 	private int port;
 	private volatile boolean remoteReadDone;
 	private boolean tunnel;
+	private volatile boolean readPending;
 
 	public InetSocketAddress getClientAddress() {
 		return clientAddress;
@@ -72,6 +77,14 @@ public class SocketInfo {
 	public void setDestination(Destination destination) {
 		this.hostname = destination.getHostName();
 		this.port = destination.getPort();
+	}
+
+	public boolean isReadPending() {
+		return readPending;
+	}
+
+	public void setReadPending(boolean readPending) {
+		this.readPending = readPending;
 	}
 
 	@Override

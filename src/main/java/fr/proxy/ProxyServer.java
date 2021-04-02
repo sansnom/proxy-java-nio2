@@ -13,6 +13,9 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * @author sbrocard
+ */
 public class ProxyServer implements Runnable {
 
 	private static final Logger LOGGER = Logger.getLogger(ProxyServer.class.getName());
@@ -26,19 +29,6 @@ public class ProxyServer implements Runnable {
 		this.serverChannel = AsynchronousServerSocketChannel.open();
 		InetSocketAddress isa = getInetSocketAddress(listenAllAddresses, localIpAddress, port);
 		this.serverChannel.bind(isa);
-	}
-
-	public static void main(String[] args) throws IOException, InterruptedException {
-		configureLogger();
-		ProxyServer proxyServer = new ProxyServer(8787, true, null, 10);
-		proxyServer.run();
-		proxyServer.join();
-		proxyServer.stop();
-	}
-
-	private static void configureLogger() {
-		final Logger app = Logger.getLogger("fr.proxy");
-		app.setLevel(Level.FINEST);
 	}
 
 	private InetSocketAddress getInetSocketAddress(boolean listenAllAddresses, String localIpAddress, int port) throws UnknownHostException {
@@ -55,8 +45,8 @@ public class ProxyServer implements Runnable {
 
 	@Override
 	public void run() {
-		LOGGER.log(Level.FINE, "Run...");
-		serverChannel.accept(new SocketInfo(), new CompletionHandler<>() {
+		LOGGER.log(Level.FINE, String.format("Run on %s", getLocal(this.serverChannel)));
+		this.serverChannel.accept(new SocketInfo(), new CompletionHandler<>() {
 
 			@Override
 			public void completed(AsynchronousSocketChannel result, SocketInfo attachment) {
@@ -83,24 +73,44 @@ public class ProxyServer implements Runnable {
 	}
 
 	public void join() throws InterruptedException {
-		synchronized (serverChannel) {
-			serverChannel.wait();
+		synchronized (this.serverChannel) {
+			this.serverChannel.wait();
 		}
 	}
 
 	public void stop() throws IOException {
-		stop = true;
-		serverChannel.close();
+		this.stop = true;
+		this.serverChannel.close();
 	}
 
 	private void handle(AsynchronousSocketChannel socketChannel, SocketInfo attachment) {
-		LOGGER.log(Level.INFO, "New connection");
+		LOGGER.log(Level.INFO, String.format("New connection from %s", attachment));
 		attachment.setClient(socketChannel);
-		SocketInfo socketInfo = SocketHandler.CLIENTS.get(attachment.getClientAddress());
-		if (socketInfo != null) {
-			LOGGER.log(Level.INFO, "Found existing tunnel for given client.");
-			attachment = socketInfo;
-		}
 		SocketHandler.readFromClientSocket(attachment);
+	}
+
+	private SocketAddress getLocal(AsynchronousServerSocketChannel serverChannel) {
+		try {
+			return serverChannel.getLocalAddress();
+		} catch (IOException e) {
+			LOGGER.log(Level.WARNING, "Could not retrieve local address", e);
+			return null;
+		}
+	}
+
+	public static void main(String[] args) throws IOException, InterruptedException {
+		configureLogger();
+		ProxyServer proxyServer = new ProxyServer(8787, true, null, 10);
+		proxyServer.run();
+		try {
+			proxyServer.join();
+		} finally {
+			proxyServer.stop();
+		}
+	}
+
+	private static void configureLogger() {
+		final Logger app = Logger.getLogger("fr.proxy");
+		app.setLevel(Level.FINEST);
 	}
 }
